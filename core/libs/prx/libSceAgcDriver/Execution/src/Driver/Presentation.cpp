@@ -23,7 +23,7 @@ void Driver::UnregisterVideoOutput(std::uint32_t handle, const std::shared_ptr<I
     outputs.erase(it);
 }
 
-void Driver::Present(const PresentationWindow& window, const DisplayBuffer* buffer, bool opaque, void (*gpuReady)(void*), void* context) {
+void Driver::Present(const PresentationWindow& window, const DisplayBuffer* buffer, bool opaque, void (*gpuReady)(void*), void* context, std::span<const std::byte> dialogPixels) {
 
     PerformanceContext timingContext(window.timing.get());
     PerformanceTimer timing("Driver.Present");
@@ -75,7 +75,7 @@ void Driver::Present(const PresentationWindow& window, const DisplayBuffer* buff
         if (presentable && !syncFlip) {
             if (inFlight != 0) {
 
-                waitedMs = presenting->RetirePresents(presenting->PresentWaitsForSlots(buffer) ? 0 : inFlight);
+                waitedMs = presenting->RetirePresents((!dialogPixels.empty() || presenting->PresentWaitsForSlots(buffer)) ? 0 : inFlight);
                 timing.Mark("inflight_wait");
             }
             presentable = presenting->AcquireImage();
@@ -85,7 +85,9 @@ void Driver::Present(const PresentationWindow& window, const DisplayBuffer* buff
             GuestMemory::TagGpuLockSite(GuestMemory::GpuLockSite::Present);
             std::lock_guard lock(GuestMemory::GpuMutex());
             timing.Mark("gpu_mutex_wait");
-            if (buffer != nullptr) {
+            if (!dialogPixels.empty()) {
+                submitted = presenting->PresentDialog(dialogPixels);
+            } else if (buffer != nullptr) {
                 if (syncFlip) {
                     presenting->WaitIdle();
                     timing.Mark("device_idle_wait");

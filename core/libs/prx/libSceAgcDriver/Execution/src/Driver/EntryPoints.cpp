@@ -120,3 +120,7 @@ extern "C" void AgcDriverResolveGraphicsAbi_nid_postfix(const Shader* vertex, co
 extern "C" void AgcDriverResolveGraphicsStagesAbi_nid_postfix(std::span<const Shader* const> stages, std::span<const ShaderRegister> context, std::span<const ShaderRegister> primitive) {
     AgcDriver::DriverDetail::Driver::Get().ResolveGraphicsStagesAbi(stages, context, primitive);
 }
+
+extern "C" void AgcDriverPresentDialog_nid_postfix(const AgcDriver::PresentationWindow& window, std::span<const std::byte> pixels, void (*gpuReady)(void*), void* context) {
+    AgcDriver::DriverDetail::Driver::Get().Present(window, nullptr, true, gpuReady, context, pixels);
+}

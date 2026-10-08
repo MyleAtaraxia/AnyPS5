@@ -1,11 +1,13 @@
-add_library(libSceMsgDialog.native SHARED EXCLUDE_FROM_ALL Export.cpp)
+add_library(libSceMsgDialog.native SHARED EXCLUDE_FROM_ALL
+    Export.cpp ${CMAKE_CURRENT_SOURCE_DIR}/../libSceMsgDialog/Export.cpp)
 target_include_directories(libSceMsgDialog.native PRIVATE ${LIBS_INCLUDE_DIR})
+target_link_libraries(libSceMsgDialog.native PRIVATE libSceCommonDialog)
 configure_windows_unwind(libSceMsgDialog.native)
 
 if(BUILD_TESTING)
     add_test_executable(guest_msg_dialog_native_tests ${LIBS_INCLUDE_DIR}/tests/GuestMsgDialogNative.cpp)
     target_include_directories(guest_msg_dialog_native_tests PRIVATE ${LIBS_INCLUDE_DIR})
-    target_link_libraries(guest_msg_dialog_native_tests PRIVATE libSceMsgDialog.native)
+    target_link_libraries(guest_msg_dialog_native_tests PRIVATE libSceMsgDialog.native libSceCommonDialog)
     add_test(NAME guest_msg_dialog_native COMMAND guest_msg_dialog_native_tests)
     if(WIN32)
         set_tests_properties(guest_msg_dialog_native PROPERTIES ENVIRONMENT_MODIFICATION

@@ -17,8 +17,14 @@ public:
     ~PadInput();
     void HandleEvent(const SDL_Event& event, DisplayWindow& window);
     void Update();
+    void SetDialogActive(bool value) {
+        if (dialogActive && !value) dialogReleasePending = true;
+        dialogActive = value; publish();
+    }
 
 private:
+    bool dialogActive = false;
+    bool dialogReleasePending = false;
     void publish();
     void setMouseMode(bool enabled);
     void openFirstAvailableController();

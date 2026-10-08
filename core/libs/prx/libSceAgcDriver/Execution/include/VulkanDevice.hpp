@@ -190,6 +190,7 @@ public:
     // mutex (the same wait under it is only the fallback when the answer changes in between).
     bool PresentWaitsForSlots(const DisplayBuffer* buffer) const;
     bool AcquireImage();
+    bool PresentDialog(std::span<const std::byte> pixels);
     bool PresentClear(std::uint32_t width, std::uint32_t height, bool opaque);
     void PresentPixels(std::uint32_t width, std::uint32_t height, std::span<const std::byte> pixels);
     bool PresentDisplayBuffer(const DisplayBuffer& buffer);

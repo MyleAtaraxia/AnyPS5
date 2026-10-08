@@ -263,10 +263,10 @@ void PadInput::HandleEvent(const SDL_Event& event, DisplayWindow& window) {
 void PadInput::Update() {
     if (controller != nullptr) SDL_GameControllerUpdate();
     applyOutput();
-    if (controller != nullptr) {
-        controllerState = sampleController();
-        publish();
-    }
+    if (controller != nullptr) controllerState = sampleController();
+    if (dialogReleasePending && controllerState.buttons == 0 &&
+        std::none_of(pressed.begin(), pressed.end(), [](bool value) { return value; })) dialogReleasePending = false;
+    publish();
     const auto now = std::chrono::steady_clock::now();
     bool released = false;
     for (std::size_t index = 0; index < bindings.size(); ++index) {
@@ -300,6 +300,7 @@ void PadInput::Update() {
 }
 
 void PadInput::publish() {
+    if (dialogActive || dialogReleasePending) { PadPublishInput_nid_postfix(PadInputState{}); return; }
     PadInputState state;
     state.buttons = controllerState.buttons;
     state.sticks = controllerState.sticks;

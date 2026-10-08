@@ -1869,6 +1869,10 @@ bool VulkanDevice::Presentable() const {
     return state->extent.width != 0 && state->extent.height != 0;
 }
 
+bool VulkanDevice::PresentDialog(std::span<const std::byte> pixels) {
+    return present(1280, 720, true, pixels);
+}
+
 bool VulkanDevice::PresentClear(std::uint32_t width, std::uint32_t height, bool opaque) {
     APS5_LOG_OUT_DEBUG("PresentClear width=%u height=%u opaque=%u", width, height, static_cast<unsigned>(opaque));
     return present(width, height, opaque, {});

@@ -17,6 +17,7 @@
 #include "prx/libSceAgcDriver/Execution/include/VideoOutput.hpp"
 #include "prx/libSceAgcDriver/Execution/include/DisplayBuffer.hpp"
 #include "prx/libSceVideoOut/include/DisplayWindow.hpp"
+#include "prx/libSceVideoOut/include/MessageDialogUI.hpp"
 #include "prx/libSceVideoOut/include/BufferReuseTracker.hpp"
 #include "prx/libc/include/Shutdown.hpp"
 
@@ -204,7 +205,7 @@ private:
     void presentLoop(std::stop_token token);
     void vblankLoop(std::stop_token token);
     void vblankEnd();
-    void processFlip(FlipRequest& req);
+    void processFlip(FlipRequest& req, std::span<const std::byte> dialogPixels);
     void triggerEvents(VideoOutConfig& cfg, int eventKind, void* triggerData);
 
     std::mutex mutex;
@@ -215,6 +216,7 @@ private:
     std::shared_ptr<FlipQueue> flipQueue = std::make_shared<FlipQueue>();
 
     DisplayWindow window;
+    std::unique_ptr<MessageDialogUI> messageDialog;
 
     std::jthread presentThread;
     std::jthread vblankThread;

@@ -209,6 +209,7 @@ VideoOutDriver::VideoOutDriver() {
     }
     try {
         AgcDriverWaitIdle_nid_postfix();
+        messageDialog = std::make_unique<MessageDialogUI>();
         presentThread = std::jthread([this](std::stop_token token) { presentLoop(token); });
         vblankThread = std::jthread([this](std::stop_token token) { vblankLoop(token); });
         LibcRegisterShutdown_nid_postfix([] { VideoOutDriver::Get().Shutdown(); });
@@ -383,7 +384,7 @@ void VideoOutDriver::vblankEnd() {
     }
 }
 
-void VideoOutDriver::processFlip(FlipRequest& req) {
+void VideoOutDriver::processFlip(FlipRequest& req, std::span<const std::byte> dialogPixels) {
     AgcDriver::PerformanceContext timingContext(req.timing.get());
     AgcDriver::PerformanceTimer timing("VideoOut.Flip");
     {
@@ -432,12 +433,15 @@ void VideoOutDriver::processFlip(FlipRequest& req) {
         request.gpuComplete = true;
         request.cfg->vblankCond.notify_all();
     };
-    if (req.index >= 0) {
+    if (!dialogPixels.empty()) {
+        AgcDriverPresentDialog_nid_postfix(target, dialogPixels, gpuReady, &req);
+    } else if (req.index >= 0) {
         const auto display = DescribeVideoOutBuffer(req.buffer, req.group);
         AgcDriverPresentBuffer_nid_postfix(target, display, gpuReady, &req);
     } else {
         AgcDriverPresentClear_nid_postfix(target, req.index == VIDEO_OUT_BUFFER_INDEX_BLACK, gpuReady, &req);
     }
+    messageDialog->Presented();
     timing.Mark("present");
     window.UpdateTitle();
     timing.Mark("window_title");
@@ -496,18 +500,40 @@ void VideoOutDriver::presentLoop(std::stop_token token) {
                     LibcRequestExit_nid_postfix(0);
                     throw ProcessShutdown{};
                 }
+                const bool dialogEvent = messageDialog->HandleEvent(event, window.Handle() ? SDL_GetWindowID(window.Handle()) : 0);
                 padInput.HandleEvent(event, window);
-                if (window.Handle() != nullptr) {
+                if (window.Handle() != nullptr && (!dialogEvent || event.type == SDL_KEYUP)) {
                     mouseInput.HandleEvent(event, SDL_GetWindowID(window.Handle()));
                     keyboardInput.HandleEvent(event, SDL_GetWindowID(window.Handle()));
                 }
             }
+            const auto dialogPixels = messageDialog->Draw();
+            padInput.SetDialogActive(!dialogPixels.empty());
             padInput.Update();
+            if (!current && !dialogPixels.empty()) {
+                window.Ensure(1280, 720);
+                unsigned count = 0;
+                if (!SDL_Vulkan_GetInstanceExtensions(window.Handle(), &count, nullptr)) throw std::runtime_error(SDL_GetError());
+                std::vector<const char*> extensions(count);
+                if (!SDL_Vulkan_GetInstanceExtensions(window.Handle(), &count, extensions.data())) throw std::runtime_error(SDL_GetError());
+                const AgcDriver::PresentationWindow target{window.Handle(), extensions,
+                    [](void* context, VkInstance instance) {
+                        VkSurfaceKHR surface{};
+                        if (!SDL_Vulkan_CreateSurface(static_cast<SDL_Window*>(context), instance, &surface)) throw std::runtime_error(SDL_GetError());
+                        return surface;
+                    }, [](void* context, std::uint32_t* width, std::uint32_t* height) {
+                        int w=0, h=0;
+                        if (!(SDL_GetWindowFlags(static_cast<SDL_Window*>(context)) & SDL_WINDOW_MINIMIZED)) SDL_Vulkan_GetDrawableSize(static_cast<SDL_Window*>(context), &w, &h);
+                        *width=std::max(w,0); *height=std::max(h,0);
+                    }, 1280, 720, {}};
+                AgcDriverPresentDialog_nid_postfix(target, dialogPixels, [](void*) {}, this);
+                messageDialog->Presented();
+            }
             if (current) {
                 require(current->timing != nullptr, "missing presentation timing");
                 const auto dequeued = AgcDriver::FrameTiming::Clock::now();
                 current->timing->Add(current->timing->Get("VideoOut", "queue"), dequeued - current->queuedAt);
-                processFlip(*current);
+                processFlip(*current, dialogPixels);
                 const auto finished = AgcDriver::FrameTiming::Clock::now();
                 AgcDriver::FrameTiming::Clock::duration interval{};
                 {
@@ -552,6 +578,7 @@ void VideoOutDriver::presentLoop(std::stop_token token) {
             cancelled.swap(flipQueue->requests);
         }
     }
+    MsgDialogRenderer_nid_no_patch(false);
     AgcDriverShutdown_nid_postfix();
     window.Destroy();
 }

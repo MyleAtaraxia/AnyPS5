@@ -25,6 +25,7 @@ struct PresentationWindow {
 
 }
 
+extern "C" void AgcDriverPresentDialog_nid_postfix(const AgcDriver::PresentationWindow& window, std::span<const std::byte> pixels, void (*gpuReady)(void*), void* context);
 extern "C" void AgcDriverPresentClear_nid_postfix(const AgcDriver::PresentationWindow& window, bool opaque, void (*gpuReady)(void*), void* context);
 extern "C" void AgcDriverPresentBuffer_nid_postfix(const AgcDriver::PresentationWindow& window, const AgcDriver::DisplayBuffer& buffer, void (*gpuReady)(void*), void* context);
 extern "C" void AgcDriverReleaseWindow_nid_postfix(void* window);

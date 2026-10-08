@@ -5,6 +5,7 @@ add_library(libSceVideoOut SHARED EXCLUDE_FROM_ALL
         ${CMAKE_CURRENT_SOURCE_DIR}/src/Output.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/VideoOutDriver.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/DisplayWindow.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/MessageDialogUI.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/PadInput.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/MouseInput.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/KeyboardInput.cpp
@@ -16,7 +17,7 @@ target_include_directories(libSceVideoOut PRIVATE
         ${CMAKE_SOURCE_DIR}/3rdparty/SDL2/include
         ${CMAKE_SOURCE_DIR}/3rdparty/Vulkan-Headers/include
 )
-target_link_libraries(libSceVideoOut PRIVATE libSceAgcDriver libScePad libSceMouse libSceKeyboard libc libkernel SDL2-static)
+target_link_libraries(libSceVideoOut PRIVATE libSceAgcDriver libScePad libSceMouse libSceKeyboard libc libkernel SDL2-static libSceCommonDialog freetype)
 if(WIN32)
     target_link_libraries(libSceVideoOut PRIVATE comctl32)
 endif()
@@ -59,6 +60,42 @@ if(BUILD_TESTING)
     add_test(NAME guest_buffer_reuse COMMAND guest_buffer_reuse_tests)
     if(WIN32)
         set_tests_properties(guest_buffer_reuse PROPERTIES ENVIRONMENT_MODIFICATION
+            "PATH=path_list_prepend:$<TARGET_FILE_DIR:libc>")
+    endif()
+endif()
+
+if(BUILD_TESTING)
+    add_test_executable(message_dialog_ui_tests tests/MessageDialog.cpp src/MessageDialogUI.cpp)
+    target_include_directories(message_dialog_ui_tests PRIVATE ${LIBS_INCLUDE_DIR} ${CMAKE_SOURCE_DIR}/3rdparty/SDL2/include)
+    target_link_libraries(message_dialog_ui_tests PRIVATE libSceCommonDialog SDL2-static freetype)
+    configure_windows_unwind(message_dialog_ui_tests)
+    add_test(NAME message_dialog_ui COMMAND message_dialog_ui_tests)
+    if(WIN32)
+        set_tests_properties(message_dialog_ui PROPERTIES ENVIRONMENT_MODIFICATION
+            "PATH=path_list_prepend:$<TARGET_FILE_DIR:libSceCommonDialog>")
+    endif()
+endif()
+if(BUILD_TESTING)
+    add_test_executable(message_dialog_presentation_tests tests/MessageDialogPresentation.cpp src/MessageDialogUI.cpp)
+    target_include_directories(message_dialog_presentation_tests PRIVATE ${LIBS_INCLUDE_DIR}
+        ${CMAKE_SOURCE_DIR}/3rdparty/SDL2/include ${CMAKE_SOURCE_DIR}/3rdparty/Vulkan-Headers/include)
+    target_link_libraries(message_dialog_presentation_tests PRIVATE libSceCommonDialog libSceAgcDriver libc SDL2-static freetype)
+    configure_windows_unwind(message_dialog_presentation_tests)
+    add_test(NAME message_dialog_presentation COMMAND message_dialog_presentation_tests)
+    set_tests_properties(message_dialog_presentation PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 30)
+    if(WIN32)
+        set_tests_properties(message_dialog_presentation PROPERTIES ENVIRONMENT_MODIFICATION
+            "PATH=path_list_prepend:$<TARGET_FILE_DIR:libSceCommonDialog>")
+    endif()
+endif()
+if(BUILD_TESTING)
+    add_test_executable(message_dialog_pad_tests tests/MessageDialogPad.cpp src/PadInput.cpp)
+    target_include_directories(message_dialog_pad_tests PRIVATE ${LIBS_INCLUDE_DIR} ${CMAKE_SOURCE_DIR}/3rdparty/SDL2/include)
+    target_link_libraries(message_dialog_pad_tests PRIVATE libc SDL2-static)
+    configure_windows_unwind(message_dialog_pad_tests)
+    add_test(NAME message_dialog_pad COMMAND message_dialog_pad_tests)
+    if(WIN32)
+        set_tests_properties(message_dialog_pad PROPERTIES ENVIRONMENT_MODIFICATION
             "PATH=path_list_prepend:$<TARGET_FILE_DIR:libc>")
     endif()
 endif()
